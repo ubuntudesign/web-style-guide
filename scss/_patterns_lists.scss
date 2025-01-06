@@ -135,7 +135,6 @@ $list-step-bullet-margin: $sph--x-large;
   }
 
   %vf-list-item-with-divisor-common-properties {
-    box-shadow: inset 0px 1px 0px 0px $colors--theme--border-low-contrast;
     margin: 0;
     padding-bottom: $sph--large;
     padding-top: $sph--small;
@@ -171,6 +170,8 @@ $list-step-bullet-margin: $sph--x-large;
 @mixin vf-list-item-divided {
   @extend %vf-list-item-with-divisor-common-properties;
 
+  box-shadow: inset 0px 1px 0px 0px $colors--theme--border-low-contrast;
+
   &:first-child {
     box-shadow: none;
   }
@@ -182,6 +183,9 @@ $list-step-bullet-margin: $sph--x-large;
 
 @mixin vf-list-item-horizontal-section {
   @extend %vf-list-item-with-divisor-common-properties;
+
+  // Allows list item pseudo-elements to be absolutely positioned relative to the list item
+  position: relative;
 }
 
 // Offset a list item icon (tick or cross) away from the divisor above it
@@ -216,44 +220,73 @@ $list-step-bullet-margin: $sph--x-large;
   }
 }
 
-@mixin vf-p-list-horizontal-section {
-  .p-list--horizontal-section {
-    @extend %vf-grid-row;
-    @extend %vf-list;
+// Sets horizontal list section grid column count and makes list item borders span the full grid width.
+// $columns: Number of columns that the list items should be divided into.
+// $skip-cols: Number of columns at the start of each row to skip
+@mixin list-horizontal-section-row-width($columns, $skip-cols: 0) {
+  --columns: #{$columns + $skip-cols};
+  // List item borders span full grid width, not list item width.
+  // Multiply 100% width by the number of columns to create a border that spans the full grid width.
+  .p-list__item:nth-child(#{$columns}n + 1)::after {
+    background: $colors--theme--border-default;
+    content: '';
+    height: 1px;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: calc(100% * (#{$columns}));
+  }
 
-    .p-list__item {
-      @extend %vf-list-item;
-      @include vf-list-item-icon-divisor-offset;
-      @include vf-list-item-horizontal-section;
-
-      // Only apply custom grid colspans if there is more than one list item.
-      // If there's only one list item, it will span the full row width.
-      &:not(:only-child) {
-        grid-column-end: span $grid-8-columns-small;
-
-        @media (min-width: $threshold-4-6-col) {
-          grid-column-end: span $grid-8-columns-medium / 2;
-        }
-
-        @media (min-width: $threshold-6-12-col) {
-          grid-column-end: span $grid-8-columns / 4;
-        }
+  @if $skip-cols > 0 {
+    @for $i from 1 through $skip-cols {
+      .p-list__item:nth-child(#{$columns}n + #{$i}) {
+        grid-column-start: #{($i + 1)};
       }
     }
   }
-  .p-list--horizontal-section.is-25-75 {
-    .p-list__item {
-      // Skip the first two columns on large
-      @media (min-width: $threshold-6-12-col) {
-        &:nth-child(3n + 1) {
-          grid-column-start: 3;
+}
+
+@mixin vf-p-list-horizontal-section {
+  $horizontal-list-section-medium-content-width: 66ch;
+  $horizontal-list-section-large-content-width: 100ch;
+
+  .p-list--horizontal-section-wrapper {
+    container-type: inline-size;
+
+    .p-list--horizontal-section {
+      @extend %vf-list;
+      @extend %fixed-width-container;
+
+      display: grid;
+
+      @container (width < #{$horizontal-list-section-medium-content-width}) {
+        @include list-horizontal-section-row-width($columns: 1);
+      }
+
+      @container (#{$horizontal-list-section-medium-content-width} <= width < #{$horizontal-list-section-large-content-width}) {
+        @include list-horizontal-section-row-width($columns: 2);
+      }
+
+      &:not(.is-25-75) {
+        @container (width >= #{$horizontal-list-section-large-content-width}) {
+          @include list-horizontal-section-row-width($columns: 4);
         }
-        &:nth-child(3n + 2) {
-          grid-column-start: 5;
-        }
-        &:nth-child(3n + 3) {
-          grid-column-start: 7;
-        }
+      }
+
+      // --columns is set in the container queries above
+      grid-template-columns: repeat(var(--columns), 1fr);
+
+      .p-list__item {
+        @extend %vf-list-item;
+        @include vf-list-item-icon-divisor-offset;
+        @include vf-list-item-horizontal-section;
+      }
+    }
+
+    .p-list--horizontal-section.is-25-75 {
+      // skip first column on large
+      @container (width >= #{$horizontal-list-section-large-content-width}) {
+        @include list-horizontal-section-row-width($columns: 3, $skip-cols: 1);
       }
     }
   }
